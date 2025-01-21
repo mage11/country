@@ -32,3 +32,6 @@ spring:
     baseline-version: 0
     schemas: public
     locations: classpath:db/migration
+  graphql:
+    graphiql:
+      enabled: true

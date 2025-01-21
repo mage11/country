@@ -26,6 +26,11 @@ public class CountryService {
             .map(Country::fromEntity).toList();
     }
 
+    public Country getCountryById(UUID id) {
+        return Country.fromEntity(countryRepository.findById(id)
+            .orElseThrow(() -> new NoSuchElementException("По id:" + id + " ничего не было найдено"))) ;
+    }
+
     public Country addCountry(Country country){
         CountryEntity countryEntity = new CountryEntity(
             null,

@@ -1,0 +1,22 @@
+scalar Date
+
+type Query {
+    all: [Country!]
+    country(id:ID!): Country!
+}
+
+type Mutation {
+    add(country:CountryFake!): Country!
+    update(id:ID!, country:CountryFake!): Country!
+}
+
+type Country {
+    id: ID!
+    countryName: String!
+    countryCode: String!
+}
+
+input CountryFake {
+    countryName: String!
+    countryCode: String!
+}
