@@ -1,5 +1,7 @@
 package guru.qa.country.service;
 
+import guru.qa.country.data.CountryEntity;
+import guru.qa.country.data.CountryRepository;
 import guru.qa.country.model.Country;
 import guru.qa.grpc.country.AllCountriesRequest;
 import guru.qa.grpc.country.AllCountriesResponse;
@@ -14,6 +16,7 @@ import io.grpc.stub.StreamObserver;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -21,15 +24,16 @@ import java.util.stream.Collectors;
 @Service
 public class CountryGrpcService extends CountryServiceGrpc.CountryServiceImplBase {
 
-    private final CountryService countryService;
+    private final CountryRepository countryRepository;
 
-    public CountryGrpcService(CountryService countryService) {
-        this.countryService = countryService;
+    public CountryGrpcService(CountryRepository countryRepository) {
+        this.countryRepository = countryRepository;
     }
 
     @Override
     public void getCountry(idRequest request, StreamObserver<CountryResponse> responseObserver) {
-        Country country = countryService.getCountryById(UUID.fromString(request.getId()));
+        Country country = Country.fromEntity(countryRepository.findById(UUID.fromString(request.getId()))
+            .orElseThrow(() -> new NoSuchElementException("По id:" + request.getId()+ " ничего не было найдено")));
 
         responseObserver.onNext(
             CountryResponse.newBuilder()
@@ -40,7 +44,9 @@ public class CountryGrpcService extends CountryServiceGrpc.CountryServiceImplBas
 
     @Override
     public void all(AllCountriesRequest request, StreamObserver<AllCountriesResponse> responseObserver) {
-        List<Country> allCountries = countryService.getAllCountries();
+        List<Country> allCountries = countryRepository.findAll()
+            .stream()
+            .map(Country::fromEntity).toList();
         List<CountryGrpc> allCountriesResponseList =
             allCountries.stream()
                 .map(this::countryConverterToGrpc)
@@ -60,7 +66,11 @@ public class CountryGrpcService extends CountryServiceGrpc.CountryServiceImplBas
         return new StreamObserver<CountryRequest>() {
             @Override
             public void onNext(CountryRequest country) {
-                countryService.addCountry(countryConverterToDefaultType(country));
+                CountryEntity countryEntity = new CountryEntity(
+                    null,
+                    country.getCountryName(),
+                    country.getCountryCode());
+                countryRepository.save(countryEntity);
                 totalAdded.incrementAndGet();
             }
 
@@ -84,13 +94,18 @@ public class CountryGrpcService extends CountryServiceGrpc.CountryServiceImplBas
 
     @Override
     public void update(UpdateCountryRequest request, StreamObserver<CountryResponse> responseObserver) {
-        Country country = countryService.updateCountry(
-            UUID.fromString(request.getId()), countryConverterToDefaultType(request.getCountry()));
+        CountryEntity countryEntity = countryRepository.findById(UUID.fromString(request.getId()))
+            .orElseThrow(() -> new NoSuchElementException("По id:" + request.getId() + " ничего не было найдено"));
+
+        CountryEntity updatedCountryEntity = new CountryEntity(
+            countryEntity.getId(),
+            request.getCountry().getCountryName(),
+            request.getCountry().getCountryCode());
 
         responseObserver.onNext(
             CountryResponse.newBuilder()
                 .setCountry(
-                    countryConverterToGrpc(country))
+                    countryConverterToGrpc(Country.fromEntity(countryRepository.save(updatedCountryEntity))))
                 .build());
         responseObserver.onCompleted();
     }
