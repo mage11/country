@@ -39,3 +39,7 @@ spring:
   graphql:
     graphiql:
       enabled: true
+server:
+  port: 8282
+country:
+  base-uri: 'http://127.0.0.1:8282'
